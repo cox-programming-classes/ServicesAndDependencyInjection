@@ -1,4 +1,6 @@
 using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using ServicesAndDependencyInjection.Models;
 
 namespace ServicesAndDependencyInjection.Services;
@@ -59,7 +61,7 @@ public class ApiService
          * Where does that information come from?
          */
         if (!TryApiCall(HttpMethod.Post, "api/auth", login,
-                out _authResponse, out ErrorRecord? error))
+                out _authResponse, out var error, false))
         {
             //Login was not Successful
             Console.WriteLine($"{error.type} : {error.error}");
@@ -81,9 +83,32 @@ public class ApiService
     public bool TryApiCall<TOut>(
         HttpMethod method, string endpoint, 
         out TOut? result, out ErrorRecord? error,
-        bool authorize = false)
+        bool authorize = true)
     {
-        throw new NotImplementedException("You gotta write this!");
+        var request = new HttpRequestMessage(method, endpoint);
+        if (authorize)
+            request.Headers.Authorization = AuthHeader;
+
+        var response = _client.Send(request);
+        var json = response.Content.ReadAsStringAsync().Result;
+        if (response.IsSuccessStatusCode)
+        {
+            result = JsonSerializer.Deserialize<TOut>(json);
+            error = null;
+            return true;
+        }
+
+        try
+        {
+            error = JsonSerializer.Deserialize<ErrorRecord>(json);
+        }
+        catch
+        {
+            error = new("Unknown Error", json);
+        }
+
+        result = default;
+        return false;
     }
 
     /// <summary>
@@ -107,8 +132,35 @@ public class ApiService
         HttpMethod method, string endpoint,
         TIn content,
         out TOut? result, out ErrorRecord? error,
-        bool authorize = false)
+        bool authorize = true)
     {
-        throw new NotImplementedException("You gotta write this!");
+        
+        var request = new HttpRequestMessage(method, endpoint);
+        if (authorize)
+            request.Headers.Authorization = AuthHeader;
+
+        var inJson = JsonSerializer.Serialize(content);
+        request.Content = new StringContent(inJson, Encoding.UTF8, "application/json");
+        
+        var response = _client.Send(request);
+        var json = response.Content.ReadAsStringAsync().Result;
+        if (response.IsSuccessStatusCode)
+        {
+            result = JsonSerializer.Deserialize<TOut>(json);
+            error = null;
+            return true;
+        }
+
+        try
+        {
+            error = JsonSerializer.Deserialize<ErrorRecord>(json);
+        }
+        catch
+        {
+            error = new("Unknown Error", json);
+        }
+
+        result = default;
+        return false;
     }
 }
