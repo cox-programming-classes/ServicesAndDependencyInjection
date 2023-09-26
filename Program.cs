@@ -9,6 +9,9 @@ ApiService apiService =
         BaseAddress = new("https://forms-dev.winsor.edu")
     });
 
+AssessmentCalendarService assessmentCalendarService = 
+    new AssessmentCalendarService(apiService);
+
 Console.Write("Email:  ");
 var email = Console.ReadLine()!;
 Console.Write("Password:  ");
