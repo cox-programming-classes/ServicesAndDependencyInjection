@@ -16,7 +16,7 @@ public class AssessmentCalendarService
     {
         var result = 
             await api.ApiCallAsync<object, List<SectionRecord>>(
-                HttpMethod.Get,"api/schedule/academic");
+                HttpMethod.Get,"api/schedule/academics?detailed=true");
 
         if (result is not null)
             return result;
@@ -27,7 +27,7 @@ public class AssessmentCalendarService
     public List<SectionRecord> GetMySchedule()
     {
         if (api.TryApiCall(HttpMethod.Get, 
-                "api/schedule/academic",
+                "api/schedule/academics?detailed=true",
                 out List<SectionRecord> records, 
                 out ErrorRecord? error))
         {
