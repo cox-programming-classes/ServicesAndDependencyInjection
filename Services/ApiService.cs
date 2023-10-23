@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -45,29 +47,110 @@ public class ApiService
     /// </summary>
     /// <param name="email"></param>
     /// <param name="password"></param>
-    public void Login(string email, string password)
+    public bool Login(string email, string password)
     {
         var login = new LoginRecord(email, password);
-        // TODO:  What does the `out` keyword mean?
-        /*
-         * The naming convention 'Try....()' on method headers
-         * Is used to indicate that this method will return a
-         * boolean success flag. Try... methods also always
-         * include an `out` parameter for the successful result
-         */
-        /*
-         * Hover your mouse over "TryApiCall"
-         * What are TIn and TOut?
-         * Where does that information come from?
-         */
+        
         if (!TryApiCall(HttpMethod.Post, "api/auth", login,
                 out _authResponse, out var error, false))
         {
             //Login was not Successful
             Console.WriteLine($"{error.type} : {error.error}");
+            return false;
         }
+
+        return true;
     }
 
+    private LoginRecord savedCredential = new LoginRecord("asjkdfhlkasd", "asjdkhflasd");
+    public async Task<bool> RenewAuth()
+    {
+        if (string.IsNullOrEmpty(_authResponse.jwt))
+        {
+            var loginSuccessful = await LoginAsync(savedCredential.email, savedCredential.password);
+            return loginSuccessful;
+        }
+
+        _authResponse = await ApiCallAsync<object, AuthResponse>(
+            HttpMethod.Get, $"api/auth/renew?refreshToken={_authResponse.refreshToken}",
+            null, authorize: true);
+        
+        return _authResponse != default;
+    }
+    
+    public Task<bool> LoginAsync(string email, string password) => 
+        new(() => Login(email, password));
+
+    public async Task<TOut?> ApiCallAsync<TIn, TOut>(
+        HttpMethod method, string endpoint,
+        TIn? content = default, bool authorize = true)
+    {
+        var request = new HttpRequestMessage(method, endpoint);
+        bool hasRetried = false;
+        RetryRequest:
+        
+        if (authorize)
+            request.Headers.Authorization = AuthHeader;
+
+        if (content is not null)
+        {
+            var inJson = JsonSerializer.Serialize(content);
+            request.Content = new StringContent(inJson, Encoding.UTF8, "application/json");
+        }
+
+        var response = await _client.SendAsync(request);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized && !hasRetried)
+        {
+            var successful = await RenewAuth();
+            if (!successful)
+            {
+                Debug.WriteLine("Failed to renew authorization!");
+                return default;
+            }
+
+            hasRetried = true;
+            goto RetryRequest;
+        }
+        // If the token is valid, but still Unauthorized
+        else if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            Debug.WriteLine("You're not allowed to do that!");
+            return default;
+        }
+        
+        // I have a non-unauthorized response.
+        var json = await response.Content.ReadAsStringAsync();
+        // check for more errors.
+        if (!response.IsSuccessStatusCode)
+        {
+            try
+            {
+                var error = JsonSerializer.Deserialize<ErrorRecord>(json)!;
+                Debug.WriteLine($"{error.type} : {error.error}");
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine("Something went wrong, but I didn't get an error message.");
+                Debug.WriteLine(e);
+            }
+
+            return default;
+        }
+        
+        // The response was successful! Yay~!
+        try
+        {
+            var result = JsonSerializer.Deserialize<TOut>(json);
+            return result;
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e);
+            return default;
+        }
+    }
+    
     /// <summary>
     /// Attempt to make an API Call (that does not have body content)
     /// If the call is successful, deserialize the `result` and null `error`
@@ -98,6 +181,11 @@ public class ApiService
             return true;
         }
 
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            // Handle Gracefully!
+        }
+        
         try
         {
             error = JsonSerializer.Deserialize<ErrorRecord>(json);
