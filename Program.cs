@@ -31,6 +31,7 @@ bool scheduleReady = false;
 Dictionary<string, Action> menuChoices = new()
 {
     {"Show my Schedule", PrintMySchedule},
+    {"Renew my Token", RenewToken},
     {"Quit", () => quitRequested = true}
 };
 
@@ -53,7 +54,9 @@ loginTask.GetAwaiter().OnCompleted(() =>
     loginComplete = true;
     
 });
-loginTask.Start();
+
+if(loginTask.Status == TaskStatus.WaitingToRun)
+    loginTask.Start();
 
 while (!loginComplete)
 {
@@ -135,6 +138,15 @@ void PrintMySchedule()
     
     Console.WriteLine("\nPress any key to continue.");
     Console.ReadKey();
+}
+
+void RenewToken()
+{
+    var task = apiService.RenewAuth();
+    task.GetAwaiter().OnCompleted(() =>
+    {
+        Console.WriteLine(task.Result ? "Token renewed!" : "Token failed to renew successfully.");
+    });
 }
 
 #endregion

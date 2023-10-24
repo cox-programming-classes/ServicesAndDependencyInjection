@@ -42,29 +42,7 @@ public class ApiService
         _client = client;
     }
 
-    /// <summary>
-    /// Attempt to Login using a given email and password.
-    /// </summary>
-    /// <param name="email"></param>
-    /// <param name="password"></param>
-    public bool Login(string email = "", string password = "")
-    {
-        var login = string.IsNullOrEmpty(email) ?
-                savedCredential :
-                new(email, password);
-        
-        if (!TryApiCall(HttpMethod.Post, "api/auth", login,
-                out _authResponse, out var error, false))
-        {
-            //Login was not Successful
-            Console.WriteLine($"{error.type} : {error.error}");
-            return false;
-        }
-
-        return true;
-    }
-
-    private LoginRecord savedCredential = new ("jcox@winsor.edu", "lol no");
+    private LoginRecord savedCredential = new ("jcox@winsor.edu", "8iwvqcNAj_TXwqi!");
     public async Task<bool> RenewAuth()
     {
         if (string.IsNullOrEmpty(_authResponse.jwt))
@@ -80,8 +58,22 @@ public class ApiService
         return _authResponse != default;
     }
     
-    public Task<bool> LoginAsync(string email = "", string password = "") => 
-        new(() => Login(email, password));
+    public async Task<bool> LoginAsync(string email = "", string password = "") 
+    {
+        var login = string.IsNullOrEmpty(email) ?
+            savedCredential :
+            new(email, password);
+        
+        if (!TryApiCall(HttpMethod.Post, "api/auth", login,
+                out _authResponse, out var error, false))
+        {
+            //Login was not Successful
+            Console.WriteLine($"{error.type} : {error.error}");
+            return false;
+        }
+
+        return true;
+    }
 
     public async Task<TOut?> ApiCallAsync<TIn, TOut>(
         HttpMethod method, string endpoint,
