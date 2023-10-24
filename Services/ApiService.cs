@@ -47,9 +47,11 @@ public class ApiService
     /// </summary>
     /// <param name="email"></param>
     /// <param name="password"></param>
-    public bool Login(string email, string password)
+    public bool Login(string email = "", string password = "")
     {
-        var login = new LoginRecord(email, password);
+        var login = string.IsNullOrEmpty(email) ?
+                savedCredential :
+                new(email, password);
         
         if (!TryApiCall(HttpMethod.Post, "api/auth", login,
                 out _authResponse, out var error, false))
@@ -62,7 +64,7 @@ public class ApiService
         return true;
     }
 
-    private LoginRecord savedCredential = new LoginRecord("asjkdfhlkasd", "asjdkhflasd");
+    private LoginRecord savedCredential = new ("jcox@winsor.edu", "lol no");
     public async Task<bool> RenewAuth()
     {
         if (string.IsNullOrEmpty(_authResponse.jwt))
@@ -78,7 +80,7 @@ public class ApiService
         return _authResponse != default;
     }
     
-    public Task<bool> LoginAsync(string email, string password) => 
+    public Task<bool> LoginAsync(string email = "", string password = "") => 
         new(() => Login(email, password));
 
     public async Task<TOut?> ApiCallAsync<TIn, TOut>(
