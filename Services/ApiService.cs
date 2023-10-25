@@ -42,7 +42,7 @@ public class ApiService
         _client = client;
     }
 
-    private LoginRecord savedCredential = new ("jcox@winsor.edu", "8iwvqcNAj_TXwqi!");
+    private LoginRecord savedCredential = new ("jcox@winsor.edu", "lol no");
     public async Task<bool> RenewAuth()
     {
         if (string.IsNullOrEmpty(_authResponse.jwt))
