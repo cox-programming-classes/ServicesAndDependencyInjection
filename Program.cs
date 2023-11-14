@@ -16,6 +16,8 @@ ApiService apiService =
 AssessmentCalendarService assessmentCalendarService = 
     new AssessmentCalendarService(apiService);
 
+MessageService messageService = new MessageService(apiService);
+
 #endregion
 
 #region Global Variables, Cache, and Flags
@@ -41,7 +43,8 @@ Dictionary<string, Action> menuChoices = new()
 Stopwatch sw = Stopwatch.StartNew();
 
 var loginTask = apiService.LoginAsync();
-loginTask.GetAwaiter().OnCompleted(() =>
+loginTask.GetAwaiter().OnCompleted(
+    () =>
 {
     if(loginTask.Result)
         Console.WriteLine("Login Successful!");
@@ -52,7 +55,6 @@ loginTask.GetAwaiter().OnCompleted(() =>
     }
     
     loginComplete = true;
-    
 });
 
 if(loginTask.Status == TaskStatus.WaitingToRun)
@@ -114,12 +116,12 @@ string GetMenuChoice(string prompt, List<string> options, string defaultOption =
             Console.WriteLine($"{i + 1}:\t{options[i]}");
 
         Console.Write(">> ");
-        if (!int.TryParse(Console.ReadLine()!, out choice))
-        {
-            choice = -1;
-            if (!string.IsNullOrEmpty(defaultOption))
-                return defaultOption;
-        }
+        if (int.TryParse(Console.ReadLine()!, out choice)) 
+            continue;
+        
+        choice = -1;
+        if (!string.IsNullOrEmpty(defaultOption))
+            return defaultOption;
     }
 
     return options[choice - 1];

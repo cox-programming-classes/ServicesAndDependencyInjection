@@ -75,43 +75,22 @@ public class ApiService
         return true;
     }
 
+    public async Task<bool> SendOnlyAsync<TIn>(HttpMethod method, string endpoint,
+        TIn? content = default)
+    {
+        var response = await BuildRequest(method, endpoint, content);
+        return response.IsSuccessStatusCode;
+    }
+    
     public async Task<TOut?> ApiCallAsync<TIn, TOut>(
         HttpMethod method, string endpoint,
         TIn? content = default, bool authorize = true)
     {
-        var request = new HttpRequestMessage(method, endpoint);
-        bool hasRetried = false;
-        RetryRequest:
+       
+        // initialize the request
+        var response = await BuildRequest(method, endpoint, content, authorize);
+
         
-        if (authorize)
-            request.Headers.Authorization = AuthHeader;
-
-        if (content is not null)
-        {
-            var inJson = JsonSerializer.Serialize(content);
-            request.Content = new StringContent(inJson, Encoding.UTF8, "application/json");
-        }
-
-        var response = await _client.SendAsync(request);
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized && !hasRetried)
-        {
-            var successful = await RenewAuth();
-            if (!successful)
-            {
-                Debug.WriteLine("Failed to renew authorization!");
-                return default;
-            }
-
-            hasRetried = true;
-            goto RetryRequest;
-        }
-        // If the token is valid, but still Unauthorized
-        else if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            Debug.WriteLine("You're not allowed to do that!");
-            return default;
-        }
         
         // I have a non-unauthorized response.
         var json = await response.Content.ReadAsStringAsync();
@@ -144,7 +123,47 @@ public class ApiService
             return default;
         }
     }
-    
+
+    private async Task<HttpResponseMessage> BuildRequest<TIn>(
+        HttpMethod method, string endpoint, 
+        TIn? content = default, bool authorize = true)
+    { 
+        bool hasRetried = false;
+        RetryRequest:
+        var request = new HttpRequestMessage(method, endpoint);
+        if (authorize)
+            request.Headers.Authorization = AuthHeader;
+
+        if (content is not null)
+        {
+            var inJson = JsonSerializer.Serialize(content);
+            request.Content = new StringContent(inJson, Encoding.UTF8, "application/json");
+        }
+        var response = await _client.SendAsync(request);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized && !hasRetried)
+        {
+            var successful = await RenewAuth();
+            if (!successful)
+            {
+                Debug.WriteLine("Failed to renew authorization!");
+                return default;
+            }
+
+            hasRetried = true;
+            goto RetryRequest;
+        }
+        // If the token is valid, but still Unauthorized
+        else if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            Debug.WriteLine("You're not allowed to do that!");
+            return default;
+        }
+        
+        
+        return response;
+    }
+
     /// <summary>
     /// Attempt to make an API Call (that does not have body content)
     /// If the call is successful, deserialize the `result` and null `error`
