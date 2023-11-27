@@ -8,7 +8,7 @@ using ServicesAndDependencyInjection.Models;
 // Again--this is a bad way to inject an HttpClient
 // Do not do this in production!  this is a simple example!
 ApiService apiService = 
-    new(new HttpClient()
+    new(new HttpClient
     {
         BaseAddress = new("https://forms-dev.winsor.edu")
     });
@@ -32,6 +32,7 @@ bool scheduleReady = false;
 
 Dictionary<string, Action> menuChoices = new()
 {
+    { "Get my Messages", () => {  /* Gotta write a method here... */ }},
     {"Show my Schedule", PrintMySchedule},
     {"Renew my Token", RenewToken},
     {"Quit", () => quitRequested = true}
